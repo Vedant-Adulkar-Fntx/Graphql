@@ -1,116 +1,95 @@
-# Corporate Intelligence GraphQL API
+# Corporate Intelligence Dashboard & GraphQL API
 
-A FastAPI + Strawberry GraphQL prototype that serves a 37-sheet corporate intelligence database directly from an Excel workbook (`Data Subscription Data points Sample data.xlsx`). 
+A full-stack application featuring a React-based interactive dashboard and a FastAPI + Strawberry GraphQL backend. It serves a 37-sheet corporate intelligence database directly from an Excel workbook (`Data Subscription Data points Sample data.xlsx`).
 
-The application exposes endpoints to query diverse corporate domains including company profiles, financials, legal/litigation cases (NCLT, DRT, IBBI), credit ratings, market data, and operational signals (EPFO, GST, News).
+The application exposes endpoints and visualizes diverse corporate domains including company profiles, financials, legal/litigation cases (NCLT, DRT, IBBI), credit ratings, market data, and operational signals (EPFO, GST, News).
 
 ---
 
 ## 🛠️ Setup & Installation
 
 ### 1. Prerequisites
-Make sure you have **Python 3.8+** installed on your system.
+Make sure you have **Python 3.8+** and **Node.js 18+** installed on your system.
 
 ### 2. Configure the Excel Data File
-By default, the application looks for an Excel file named **`Data Subscription Data points Sample data.xlsx`** inside this project directory.
-* If your file is named differently or located elsewhere, you can configure it via the `EXCEL_PATH` environment variable.
+By default, the backend looks for an Excel file named **`Data Subscription Data points Sample data.xlsx`** inside the root project directory.
+* If your file is named differently or located elsewhere, configure it via the `EXCEL_PATH` environment variable.
 
-### 3. Install Dependencies
-Activate your virtual environment and install the required libraries:
+### 3. Install Backend Dependencies
+Activate your virtual environment and install the required Python libraries:
 
 **Using Command Prompt (`cmd`):**
 ```cmd
 .\venv\Scripts\pip install -r requirements.txt
 ```
 
-**Using PowerShell:**
-```powershell
-.\venv\Scripts\pip install -r requirements.txt
-```
-
-*Note: If local execution is blocked by group policy, you can install them using the system Python:*
+### 4. Install Frontend Dependencies
+Navigate to the `ui` directory and install the Node.js packages:
 ```cmd
-python -m pip install -r requirements.txt
+cd ui
+npm install
 ```
 
 ---
 
 ## 🚀 Running the Application
 
-Start the development server with `uvicorn`:
+You will need two terminal windows to run both the backend API and the frontend UI concurrently.
 
-**Using virtual environment's uvicorn:**
+### 1. Start the Backend API (Terminal 1)
+From the root directory, start the FastAPI server:
 ```cmd
 .\venv\Scripts\uvicorn main:app --reload --port 8000
 ```
 
-**Using global python:**
+### 2. Start the Frontend UI (Terminal 2)
+From the `ui` directory, start the Vite development server:
 ```cmd
-python -m uvicorn main:app --reload --port 8000
+cd ui
+npm run dev
 ```
 
 ---
 
-## 🌐 Endpoints
+## 🌐 Application URLs
 
-Once the server starts, the following URLs will be available:
+Once the servers start, you can access the following:
 
+* **Interactive Dashboard (React UI)**: [http://localhost:5173](http://localhost:5173) (or the port specified by Vite)
+  *Use this to search for companies and browse their data profiles visually.*
 * **Interactive GraphQL Playground (GraphiQL)**: [http://localhost:8000/graphql](http://localhost:8000/graphql)  
-  *Use this in your browser to write queries, explore the full schema, and run requests.*
+  *Use this to write raw queries and explore the full backend schema.*
 * **Swagger UI (REST documentation)**: [http://localhost:8000/docs](http://localhost:8000/docs)  
-  *Exposes metadata endpoints and health checks.*
-* **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)  
-  *Returns the list of Excel sheets loaded successfully by pandas.*
 
 ---
 
-## 🔍 Sample Queries
+## 🔍 Recommended Sample Companies
 
-Here are a few quick GraphQL queries you can copy-paste into the Playground at `/graphql`.
+The backend automatically configures three data-rich sample companies to make testing easy. You can search for these directly in the UI Dashboard or query them in the GraphQL playground:
 
-### Discover Registered Companies
-Gets the first 5 companies loaded in the database (helpful to find a valid `cin` for profiling):
+1. **Tata Consultancy Services Limited** (`L22210MH1995PLC084781`)
+2. **Sprng Energy Private Limited** (`U74999TN2016PTC162587`)
+3. **Neev Energy LLP** (`AAA-1769`)
+
+### Get Company Profile (GraphQL Example)
 ```graphql
-query ListCompanies {
-  companies(pagination: { page: 0, pageSize: 5 }) {
-    cin
-    company
-    regState
-    regCity
-  }
-}
-```
-
-### Get Company Profile
-Retrieve a unified profile containing general details, directors, and credit ratings for a company:
-```graphql
-query GetProfile($cin: String!) {
-  company(cin: $cin) {
+query GetProfile {
+  company(cin: "L22210MH1995PLC084781") {
     cin
     company
     dateOfIncorporation
     authorisedCapital
     paidUpCapital
-    directors {
-      name
-      designation
-    }
-    creditRatings {
-      rating
-      outlook
-      craName
+    financials {
+      year
+      title
+      amount
     }
   }
-}
-```
-*Pass a valid CIN in the variables pane, or test directly:*
-```json
-{
-  "cin": "YOUR_DISCOVERED_CIN"
 }
 ```
 
 ---
 
 ## 📑 Test Suite & Query Library
-For a complete list of structured GraphQL queries (covering **Financial statements, NCLT cases, GST registration details, EPFO payroll filings, Share prices, and Audit reports**), refer to the [example_queries.http](example_queries.http) file.
+For a complete list of structured GraphQL queries covering **Financial statements, NCLT cases, GST registration details, EPFO payroll filings, Share prices, and Audit reports**, refer to the [example_queries.http](example_queries.http) file.
