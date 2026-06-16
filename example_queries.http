@@ -1,0 +1,493 @@
+###############################################################################
+#  Corporate Intelligence GraphQL API — Example Queries
+#
+#  Three formats for every query:
+#    1. HTTP (VS Code REST Client / IntelliJ HTTP Client)
+#    2. curl  (terminal)
+#    3. Python requests
+#
+#  Base URL: http://localhost:8000/graphql
+#  Run server: uvicorn main:app --reload --port 8000
+###############################################################################
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. HEALTH CHECK  (REST, not GraphQL)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Health
+GET http://localhost:8000/health
+
+# curl:
+# curl http://localhost:8000/health
+
+# Python:
+# import requests
+# print(requests.get("http://localhost:8000/health").json())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. FULL COMPANY PROFILE  (hub-first traversal)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Full Company Profile — TCS
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "query CompanyProfile($cin: String!) { company(cin: $cin) { cin company dateOfIncorporation regState regCity authorisedCapital paidUpCapital whetherListedOrNot directors { name designation din cessationDate } mca_default { mcaDefaultDate } shellCompany { mcaDate source } creditRatings { rating ratingAction outlook craName } assetCharges { chargeHolderName chargeAmount chargeDate closureDate } ncltCases { caseNumber caseStatus petitioner respondent filingDate bench } drtCases { suitRefNo caseStatus petitioners respondent suitDate } wilfulDefaulters { borrowerName outstandingAmountInLakhs memberName } news { title sentiment sentimentScore publishedAt source } } }",
+  "variables": { "cin": "L22210MH1995PLC084781" }
+}
+
+# curl:
+# curl -s -X POST http://localhost:8000/graphql \
+#   -H "Content-Type: application/json" \
+#   -d '{"query":"query { company(cin:\"L22210MH1995PLC084781\") { cin company dateOfIncorporation regState authorisedCapital directors { name designation } ncltCases { caseNumber caseStatus } } }"}' \
+#   | python3 -m json.tool
+
+# Python:
+# import requests, json
+# ENDPOINT = "http://localhost:8000/graphql"
+# def gql(query, variables=None):
+#     r = requests.post(ENDPOINT, json={"query": query, "variables": variables or {}})
+#     r.raise_for_status()
+#     return r.json()
+#
+# result = gql("""
+#   query CompanyProfile($cin: String!) {
+#     company(cin: $cin) {
+#       cin
+#       company
+#       dateOfIncorporation
+#       authorisedCapital
+#       directors { name designation }
+#       ncltCases { caseNumber caseStatus }
+#     }
+#   }
+# """, {"cin": "L22210MH1995PLC084781"})
+# print(json.dumps(result, indent=2, default=str))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. SEARCH COMPANIES
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Search companies by name + state
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "query SearchCompanies($filter: CompanyFilter!, $page: PaginationInput!) { companies(filter: $filter, pagination: $page) { cin company regState regCity dateOfIncorporation whetherListedOrNot authorisedCapital paidUpCapital } }",
+  "variables": {
+    "filter": { "name": "Sprng", "state": "Tamil Nadu" },
+    "page":   { "page": 0, "pageSize": 10 }
+  }
+}
+
+# curl:
+# curl -s -X POST http://localhost:8000/graphql \
+#   -H "Content-Type: application/json" \
+#   -d '{"query":"{ companies(filter:{name:\"TCS\"}, pagination:{page:0,pageSize:5}) { cin company regState } }"}' \
+#   | python3 -m json.tool
+
+### Search companies — listed only
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ companies(filter: { listed: true }, pagination: { page: 0, pageSize: 20 }) { cin company whetherListedOrNot authorisedCapital } }"
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. FINANCIAL STATEMENTS  (domain-first)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### P&L line items — TCS FY2024, Ind-AS, Standalone
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "query Financials($filter: FinancialFilter!, $page: PaginationInput!) { financials(filter: $filter, pagination: $page) { title amount unit year startDate endDate format } }",
+  "variables": {
+    "filter": { "cin": "L22210MH1995PLC084781", "year": 2024, "format": "ind-as" },
+    "page":   { "page": 0, "pageSize": 50 }
+  }
+}
+
+# Python:
+# result = gql("""
+#   query {
+#     financials(
+#       filter: { cin: "L22210MH1995PLC084781", year: 2024, format: "ind-as" }
+#       pagination: { page: 0, pageSize: 50 }
+#     ) {
+#       title amount unit year startDate endDate
+#     }
+#   }
+# """)
+
+### Cashflow — TCS FY2024 Standalone operating activities
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ cashflow(filter: { cin: \"L22210MH1995PLC084781\", year: 2024, natureOfReport: \"Standalone\" }, pagination: { page: 0, pageSize: 50 }) { title amount unit startDate endDate natureOfReport } }"
+}
+
+### Unbilled Revenue — Fortinet India
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ unbilledRevenue(cin: \"U51909KA2008PTC046691\") { amount unit year startDate endDate title } }"
+}
+
+### Claims Not Acknowledged — TCS all years
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ claimsNotAcknowledged(cin: \"L22210MH1995PLC084781\") { amount unit title year startDate endDate reference } }"
+}
+
+### Non-current investments (subsidiary schedule)
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ noncurrentInvestments(cin: \"U74999TN2016PTC162587\", year: 2024, natureOfReport: \"Standalone\") { affiliateName noncurrentInvestments numberOfShares affiliateCin cleanedAffiliateName } }"
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. PEOPLE & DIRECTORS  (domain-first)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### All directors for a company
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ directors(filter: { cin: \"L22210MH1995PLC084781\" }, pagination: { page: 0, pageSize: 50 }) { name designation din cessationDate personType } }"
+}
+
+### Director lookup by name (partial match)
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ directors(filter: { name: \"Rajesh\" }) { name designation cin companyName din } }"
+}
+
+### Disqualified / debarred directors by CIN
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ disqualifiedDirectors(cin: \"L22210MH1995PLC084781\") { din companyName fromDate toDate debDate } }"
+}
+
+### Wilful defaulter check by PAN
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ wilfulDefaulters(filter: { borrowerPan: \"AADCT2010D\" }) { borrowerName outstandingAmountInLakhs memberName reportingCycle state } }"
+}
+
+### All defaulters from a specific bank
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ wilfulDefaulters(filter: { memberName: \"HDFC\" }, pagination: { page: 0, pageSize: 30 }) { borrowerName outstandingAmountInLakhs borrowerAddress state } }"
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6. LEGAL / LITIGATION  (domain-first)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### All NCLT cases for a company
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ ncltCases(filter: { cin: \"L22210MH1995PLC084781\" }, pagination: { page: 0, pageSize: 20 }) { caseNumber caseStatus petitioner respondent filingDate bench petitionerBank } }"
+}
+
+### NCLT — Mumbai bench, all companies
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ ncltCases(filter: { benchCode: \"MUM\" }, pagination: { page: 0, pageSize: 25 }) { company cin caseNumber caseStatus filingDate petitioner respondent nextListingDate } }"
+}
+
+### DRT cases by case status
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ drtCases(filter: { caseStatus: \"pending\" }, pagination: { page: 0, pageSize: 20 }) { courtName suitRefNo petitioners respondent suitDate nextHearingDate } }"
+}
+
+### IBBI insolvency cases
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ ibbiCases(pagination: { page: 0, pageSize: 20 }) { courtName suitRefNo petitioners respondent suitDate caseStatus } }"
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7. CAPITAL MARKETS
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Share price history — TCS on BSE
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ sharePrices(filter: { symbol: \"TCS\", exchange: \"BSE\", fromDate: \"2024-01-01\", toDate: \"2024-03-31\" }, pagination: { page: 0, pageSize: 60 }) { date open high low close volume adjClose } }"
+}
+
+### BSE market cap — detailed metrics
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ bseMarketCap(scripCode: \"532540\") { scripCode documentDate lastTradedPrice totalMarketCap freeFloatMarketCap peRatio pbRatio eps returnOnEquity fiftyTwoWeekHigh fiftyTwoWeekLow } }"
+}
+
+### BSE shareholding pattern — Q4 FY2024
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ bseShareholding(scripCode: \"532540\", financialYear: \"2023-24\", quarter: \"Q4\") { shareHolderCategory totalShares shareHoldingPct noOfVotingRights votingRightsPct dematerializedSharesHeld } }"
+}
+
+### NSE shareholding — promoter vs public
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ nseShareholding(symbol: \"TCS\") { shareholdingDate shareholderCategory totalNumSharesHeld totalNumSharesHeldPct numSharesPledged numSharesPledgedPct promoterGroupPct publicPct } }"
+}
+
+### BSE announcements — critical only
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ bseAnnouncements(filter: { scripCode: \"532540\", criticalOnly: true }, pagination: { page: 0, pageSize: 10 }) { subject categoryName subcategoryName announcementDate publishedAt attachmentFileUrl } }"
+}
+
+### Credit ratings — all upgrades
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ creditRatings(filter: { ratingAction: \"upgrade\" }) { issuer rating ratingAction outlook craName amount instrument rationaleDate } }"
+}
+
+### NSDL debt instruments — by issuer
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ nsdlInstruments(issuerName: \"TCS\", status: \"Active\") { issuerName issuerIsin instrumentType faceValue issueSizeCr maturityDate couponRatePct couponType creditRating } }"
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 8. AUDIT & COMPLIANCE
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Audit report text — TCS FY2024
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ auditReports(cin: \"L22210MH1995PLC084781\", year: 2024) { year auditorReport startDate endDate fileName } }"
+}
+
+### Auditor details — firm lookup
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ auditorDetails(firmNo: \"324982E\") { auditorName memberName membershipNumber category year cin company startDate endDate } }"
+}
+
+### ADT details — resignations only (resignationDate not null)
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ adtDetails(cin: \"L22210MH1995PLC084781\") { nameOfAuditor firmNo appointmentDate resignationDate reason } }"
+}
+
+### Asset charges — open charges for a company
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ assetCharges(cin: \"L22210MH1995PLC084781\", authorisationStatus: \"Satisfied\") { chargeHolderName chargeAmount chargeDate closureDate assetsUnderCharge satisfactionDate } }"
+}
+
+### MCA defaulters — search by PAN
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ mcaDefaults(pan: \"AADCT2010D\") { cin pan companyName mcaDefaultDate } }"
+}
+
+### Shell company check
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ shellCompanies { cin companyName mcaDate sebiDate source removeReason } }"
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 9. OPERATIONAL SIGNALS
+# ─────────────────────────────────────────────────────────────────────────────
+
+### EPFO contributions — by establishment
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ epfoRecords(filter: { establishmentName: \"Tata\" }, pagination: { page: 0, pageSize: 20 }) { establishmentName establishmentCode wageMonth noOfEmployees amount dateOfCredit officeName } }"
+}
+
+### News — negative sentiment about a company
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ news(filter: { companyName: \"Sprng\", sentiment: \"negative\" }, pagination: { page: 0, pageSize: 10 }) { title description publishedAt source sentiment sentimentScore category } }"
+}
+
+### GST — GSTIN lookup
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ gst(filter: { legalName: \"Tata Consultancy\" }) { gstin gstinStatus legalName tradeName taxpayerType jurisdictionState registrationDate businessNatureActivities returnFilingDetails { fy returnType status } } }"
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 10. COMBINING COMPANY-HUB + DOMAIN-DIRECT IN ONE REQUEST
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Unified risk profile in a single request (aliases for multiple companies)
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ tcs: company(cin: \"L22210MH1995PLC084781\") { cin company authorisedCapital ncltCases { caseStatus } mcaDefault { mcaDefaultDate } shellCompany { source } } sprng: company(cin: \"U74999TN2016PTC162587\") { cin company authorisedCapital ncltCases { caseStatus } mcaDefault { mcaDefaultDate } } allDefaults: mcaDefaults { cin companyName mcaDefaultDate } }"
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 11. PYTHON REQUESTS — COMPLETE EXAMPLE SCRIPT
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Save as api_client.py and run: python api_client.py
+#
+# import requests, json
+#
+# ENDPOINT = "http://localhost:8000/graphql"
+#
+# def gql(query: str, variables: dict = None) -> dict:
+#     payload = {"query": query}
+#     if variables:
+#         payload["variables"] = variables
+#     response = requests.post(ENDPOINT, json=payload, timeout=30)
+#     response.raise_for_status()
+#     result = response.json()
+#     if "errors" in result:
+#         raise ValueError(f"GraphQL errors: {result['errors']}")
+#     return result["data"]
+#
+#
+# # Example 1 — Company profile
+# profile = gql("""
+#   query Profile($cin: String!) {
+#     company(cin: $cin) {
+#       cin
+#       company
+#       regState
+#       authorisedCapital
+#       paidUpCapital
+#       directors { name designation }
+#       ncltCases { caseNumber caseStatus filingDate }
+#       creditRatings { rating outlook craName }
+#     }
+#   }
+# """, {"cin": "L22210MH1995PLC084781"})
+# print(json.dumps(profile, indent=2, default=str))
+#
+#
+# # Example 2 — Paginate through all companies in Maharashtra
+# page = 0
+# while True:
+#     data = gql("""
+#       query ($page: Int!) {
+#         companies(
+#           filter: { state: "Maharashtra" }
+#           pagination: { page: $page, pageSize: 50 }
+#         ) { cin company regCity }
+#       }
+#     """, {"page": page})
+#     companies = data["companies"]
+#     if not companies:
+#         break
+#     for c in companies:
+#         print(c["cin"], c["company"], c.get("regCity"))
+#     page += 1
+#
+#
+# # Example 3 — All pending NCLT cases across companies
+# nclt = gql("""
+#   {
+#     nclt_cases(
+#       filter: { caseStatus: "pending" }
+#       pagination: { page: 0, pageSize: 100 }
+#     ) {
+#       company cin caseNumber bench petitioner respondent filingDate
+#     }
+#   }
+# """)
+# for case in nclt["nclt_cases"]:
+#     print(case["company"], case["caseNumber"], case["caseStatus"])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 12. INTROSPECTION — explore the schema
+# ─────────────────────────────────────────────────────────────────────────────
+
+### List all query fields available
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ __schema { queryType { fields { name description args { name type { name kind } } } } } }"
+}
+
+### Inspect Company type fields
+POST http://localhost:8000/graphql
+Content-Type: application/json
+
+{
+  "query": "{ __type(name: \"Company\") { fields { name description type { name kind ofType { name kind } } } } }"
+}
