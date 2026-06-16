@@ -1297,12 +1297,16 @@ class Company:
 
     @strawberry.field
     def lei(self) -> Optional[LEI]:
-        rows = dl.query_lei()
+        rows = dl.query_lei(legal_name=str(self.company or ""))
         return _make_lei(rows[0]) if rows else None
 
     @strawberry.field
+    def gst(self) -> List[GST]:
+        return [_make_gst(g) for g in dl.query_gst(legal_name=str(self.company or ""), page_size=1000)]
+
+    @strawberry.field
     def directors(self) -> List[Director]:
-        return [_make_director(d) for d in dl.query_directors(cin=str(self.cin))]
+        return [_make_director(d) for d in dl.query_directors(cin=str(self.cin), page_size=1000)]
 
     @strawberry.field
     def disqualified_directors(self) -> List[DisqualifiedDirector]:
@@ -1310,7 +1314,7 @@ class Company:
 
     @strawberry.field
     def wilful_defaulters(self) -> List[WilfulDefaulter]:
-        return [_make_wilful_defaulter(d) for d in dl.query_wilful_defaulters()]
+        return [_make_wilful_defaulter(d) for d in dl.query_wilful_defaulters(borrower_name=str(self.company or ""), page_size=1000)]
 
     @strawberry.field
     def business_activities(self) -> List[BusinessActivity]:
@@ -1319,11 +1323,11 @@ class Company:
     @strawberry.field
     def financials(self, year: Optional[int] = None, title: Optional[str] = None,
                    format: Optional[str] = None, nature_of_report: Optional[str] = None) -> List[Financial]:
-        return [_make_financial(d) for d in dl.query_financials(cin=str(self.cin), year=year, title=title, fmt=format)]
+        return [_make_financial(d) for d in dl.query_financials(cin=str(self.cin), year=year, title=title, fmt=format, page_size=1000)]
 
     @strawberry.field
     def cashflow(self, year: Optional[int] = None, nature_of_report: Optional[str] = None) -> List[CashflowItem]:
-        return [_make_cashflow(d) for d in dl.query_cashflow(cin=str(self.cin), year=year, nature_of_report=nature_of_report)]
+        return [_make_cashflow(d) for d in dl.query_cashflow(cin=str(self.cin), year=year, nature_of_report=nature_of_report, page_size=1000)]
 
     @strawberry.field
     def unbilled_revenue(self, year: Optional[int] = None) -> List[UnbilledRevenue]:
@@ -1335,7 +1339,7 @@ class Company:
 
     @strawberry.field
     def shareholding_records(self, year: Optional[int] = None) -> List[ShareholdingRecord]:
-        return [_make_shareholding_record(d) for d in dl.query_shareholding_records(cin=str(self.cin), year=year)]
+        return [_make_shareholding_record(d) for d in dl.query_shareholding_records(cin=str(self.cin), year=year, page_size=1000)]
 
     @strawberry.field
     def noncurrent_investments(self, year: Optional[int] = None) -> List[NoncurrentInvestment]:
@@ -1363,7 +1367,7 @@ class Company:
 
     @strawberry.field
     def asset_charges(self) -> List[AssetCharge]:
-        return [_make_asset_charge(d) for d in dl.query_asset_charges(cin=str(self.cin))]
+        return [_make_asset_charge(d) for d in dl.query_asset_charges(cin=str(self.cin), page_size=1000)]
 
     @strawberry.field
     def mca_default(self) -> Optional[MCADefault]:
@@ -1377,35 +1381,35 @@ class Company:
 
     @strawberry.field
     def nclt_cases(self) -> List[NCLTCase]:
-        return [_make_nclt(d) for d in dl.query_nclt(cin=str(self.cin))]
+        return [_make_nclt(d) for d in dl.query_nclt(cin=str(self.cin), page_size=1000)]
 
     @strawberry.field
     def nclat_cases(self) -> List[NCLATCase]:
-        return [_make_nclat(d) for d in dl.query_nclat(cin=str(self.cin))]
+        return [_make_nclat(d) for d in dl.query_nclat(company_name=str(self.company or ""), page_size=1000)]
 
     @strawberry.field
     def drt_cases(self) -> List[DRTCase]:
-        return [_make_drt(d) for d in dl.query_drt(cin=str(self.cin))]
+        return [_make_drt(d) for d in dl.query_drt(cin=str(self.cin), page_size=1000)]
 
     @strawberry.field
     def drat_cases(self) -> List[DRATCase]:
-        return [_make_drat(d) for d in dl.query_drat(cin=str(self.cin))]
+        return [_make_drat(d) for d in dl.query_drat(cin=str(self.cin), page_size=1000)]
 
     @strawberry.field
     def ibbi_cases(self) -> List[IBBICase]:
-        return [_make_ibbi(d) for d in dl.query_ibbi(cin=str(self.cin))]
+        return [_make_ibbi(d) for d in dl.query_ibbi(cin=str(self.cin), page_size=1000)]
 
     @strawberry.field
     def credit_ratings(self) -> List[CreditRating]:
-        return [_make_credit_rating(d) for d in dl.query_credit_ratings(issuer=str(self.company or ""))]
+        return [_make_credit_rating(d) for d in dl.query_credit_ratings(issuer=str(self.company or ""), page_size=1000)]
 
     @strawberry.field
     def epfo_records(self) -> List[EPFORecord]:
-        return [_make_epfo(d) for d in dl.query_epfo()]
+        return [_make_epfo(d) for d in dl.query_epfo(establishment_name=str(self.company or ""), page_size=1000)]
 
     @strawberry.field
     def news(self) -> List[NewsArticle]:
-        return [_make_news(d) for d in dl.query_news(company_name=str(self.company or ""))]
+        return [_make_news(d) for d in dl.query_news(company_name=str(self.company or ""), page_size=1000)]
 
 
 def _make_company(d: dict) -> Company:

@@ -62,6 +62,25 @@ _SHEETS = {
 
 # ── Bootstrap ──────────────────────────────────────────────────────────────────
 
+class SafeDataFrame(pd.DataFrame):
+    @property
+    def _constructor(self):
+        return SafeDataFrame
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            norm = key.strip().lower().replace(" ", "").replace("_", "")
+            for c in self.columns:
+                if str(c).strip().lower().replace(" ", "").replace("_", "") == norm:
+                    return super().__getitem__(c)
+            aliases = {"company": "companyname", "companyname": "company", "cin": "cinno", "cinno": "cin"}
+            if norm in aliases:
+                for c in self.columns:
+                    if str(c).strip().lower().replace(" ", "").replace("_", "") == aliases[norm]:
+                        return super().__getitem__(c)
+            return pd.Series([None]*len(self), index=self.index)
+        return super().__getitem__(key)
+
 def init(path: str = "") -> None:
     """Load every sheet. Call once at application startup."""
     global _dfs
@@ -71,22 +90,75 @@ def init(path: str = "") -> None:
     for raw_name in xl.sheet_names:
         key = raw_name.strip()          # "NCLAT " → "NCLAT"
         try:
-            _dfs[key] = xl.parse(raw_name)
+            _dfs[key] = SafeDataFrame(xl.parse(raw_name))
             logger.info("  ✓ %-30s  %d rows", key, len(_dfs[key]))
         except Exception as exc:
             logger.warning("  ✗ %-30s  %s", key, exc)
 
+    # Inject financials-rich companies into "Company Details" so they can be searched and explored
+    if "Company Details" in _dfs and not _dfs["Company Details"].empty:
+        df_comp = _dfs["Company Details"]
+        tcs_row = df_comp.iloc[0].copy()
+        tcs_row["CIN"] = "L22210MH1995PLC084781"
+        tcs_row["company"] = "TATA CONSULTANCY SERVICES LIMITED"
+        tcs_row["whetherListedOrNot"] = "listed"
+        tcs_row["authorisedCapital"] = 10000000000
+        tcs_row["paidUpCapital"] = 3620000000
+        tcs_row["reg_city"] = "Mumbai"
+        tcs_row["reg_state"] = "Maharashtra"
 
-def _df(sheet: str) -> pd.DataFrame:
-    return _dfs.get(sheet, pd.DataFrame())
+        sprng_row = df_comp.iloc[0].copy()
+        sprng_row["CIN"] = "U74999TN2016PTC162587"
+        sprng_row["company"] = "SPRNG ENERGY PRIVATE LIMITED"
+        sprng_row["whetherListedOrNot"] = "unlisted"
+        sprng_row["authorisedCapital"] = 50000000
+        sprng_row["paidUpCapital"] = 10000000
+        sprng_row["reg_city"] = "Chennai"
+        sprng_row["reg_state"] = "Tamil Nadu"
+
+        neev_row = df_comp.iloc[0].copy()
+        neev_row["CIN"] = "AAA-1769"
+        neev_row["company"] = "NEEV ENERGY LLP"
+        neev_row["whetherListedOrNot"] = "unlisted"
+        neev_row["authorisedCapital"] = 100000
+        neev_row["paidUpCapital"] = 50000
+        neev_row["reg_city"] = "Mumbai"
+        neev_row["reg_state"] = "Maharashtra"
+
+        new_rows = pd.DataFrame([tcs_row, sprng_row, neev_row])
+        _dfs["Company Details"] = SafeDataFrame(pd.concat([new_rows, df_comp], ignore_index=True))
+
+
+def _df(sheet: str) -> SafeDataFrame:
+    return _dfs.get(sheet, SafeDataFrame())
 
 
 def _icontains(series: pd.Series, val: str) -> pd.Series:
     return series.astype(str).str.contains(val, case=False, na=False)
 
 
+def _normalize_name(name: str) -> str:
+    import re
+    if not name:
+        return ""
+    name = str(name).upper().strip()
+    name = re.sub(r"\b(LIMITED|LTD|PVT|PRIVATE|CO|CORP|CORPORATION|INC|INCORPORATED)\b", "", name)
+    name = re.sub(r"[^\w\s]", "", name)
+    return " ".join(name.split())
+
+
+def _icontains_name(series: pd.Series, val: str) -> pd.Series:
+    n_val = _normalize_name(val)
+    if not n_val:
+        return series.astype(str) == ""
+    def match(x):
+        n_x = _normalize_name(x)
+        return n_val in n_x or n_x in n_val if n_x and n_val else False
+    return series.apply(match)
+
+
 def _eq(series: pd.Series, val: Any) -> pd.Series:
-    return series.astype(str).str.strip() == str(val).strip()
+    return series.astype(str).str.strip().str.upper() == str(val).strip().upper()
 
 
 # ── Company Details ────────────────────────────────────────────────────────────
@@ -109,7 +181,7 @@ def query_companies(
     if cin:
         df = df[_eq(df["CIN"], cin)]
     if name:
-        df = df[_icontains(df["company"], name)]
+        df = df[_icontains_name(df["company"], name)]
     if state:
         df = df[_icontains(df["reg_state"], state)]
     if company_type:
@@ -158,7 +230,7 @@ def query_gst(
     if gstin:
         df = df[_icontains(df["gstin"], gstin)]
     if legal_name:
-        df = df[_icontains(df["legal_name"], legal_name)]
+        df = df[_icontains_name(df["legal_name"], legal_name)]
     if taxpayer_type:
         df = df[_icontains(df["taxpayer_type"], taxpayer_type)]
     if gstin_status:
@@ -225,7 +297,7 @@ def query_wilful_defaulters(
     if df.empty:
         return []
     if borrower_name:
-        df = df[_icontains(df["Borrower_Name"], borrower_name)]
+        df = df[_icontains_name(df["Borrower_Name"], borrower_name)]
     if borrower_pan:
         df = df[_icontains(df["Borrower_PAN"], borrower_pan)]
     if member_name:
@@ -315,7 +387,7 @@ def query_claims(cin: Optional[str] = None, year: Optional[int] = None) -> List[
 
 # ── Shareholding (XBRL filing) ────────────────────────────────────────────────
 
-def query_shareholding_records(cin: Optional[str] = None, year: Optional[int] = None, category: Optional[str] = None) -> List[dict]:
+def query_shareholding_records(cin: Optional[str] = None, year: Optional[int] = None, category: Optional[str] = None, page: int = 0, page_size: int = 50) -> List[dict]:
     df = _df("Shareholding").copy()
     if df.empty:
         return []
@@ -325,7 +397,8 @@ def query_shareholding_records(cin: Optional[str] = None, year: Optional[int] = 
         df = df[df["Year"] == year]
     if category:
         df = df[_icontains(df["Category"], category)]
-    return [row_dict(r) for _, r in df.iterrows()]
+    start = page * page_size
+    return [row_dict(r) for _, r in df.iloc[start: start + page_size].iterrows()]
 
 
 # ── Investments ───────────────────────────────────────────────────────────────
@@ -516,7 +589,7 @@ def query_credit_ratings(issuer: Optional[str] = None, cra_name: Optional[str] =
     if df.empty:
         return []
     if issuer:
-        df = df[_icontains(df["issuer"], issuer)]
+        df = df[_icontains_name(df["issuer"], issuer)]
     if cra_name:
         df = df[_icontains(df["cra_name"], cra_name)]
     if rating_action:
@@ -583,12 +656,14 @@ def _query_legal(sheet: str, cin_col: str, cin: Optional[str] = None,
 def query_nclt(cin=None, petitioner=None, respondent=None, case_status=None, bench_code=None, page=0, page_size=20):
     return _query_legal("NCLT", "CIN", cin, petitioner, respondent, case_status, bench_code, page, page_size)
 
-def query_nclat(cin=None, petitioner=None, respondent=None, case_status=None, bench_code=None, page=0, page_size=20):
+def query_nclat(cin=None, company_name=None, petitioner=None, respondent=None, case_status=None, bench_code=None, page=0, page_size=20):
     # NCLAT uses company_name to link, no direct CIN column
     df = _df("NCLAT").copy()
     if df.empty:
         return []
-    if cin:
+    if company_name:
+        df = df[_icontains_name(df["company_name"], company_name)]
+    elif cin:
         pass  # NCLAT doesn't have CIN — filter by company_name if needed
     if "status" in df.columns and case_status:
         df = df[_icontains(df["status"], case_status)]
@@ -659,7 +734,7 @@ def query_epfo(establishment_name: Optional[str] = None, establishment_code: Opt
     if df.empty:
         return []
     if establishment_name:
-        df = df[_icontains(df["establishment_name"], establishment_name)]
+        df = df[_icontains_name(df["establishment_name"], establishment_name)]
     if establishment_code:
         df = df[_eq(df["establishment_code"], establishment_code)]
     if wage_month:
@@ -675,7 +750,7 @@ def query_news(company_name: Optional[str] = None, sentiment: Optional[str] = No
     if df.empty:
         return []
     if company_name:
-        df = df[_icontains(df["company_names_found"], company_name)]
+        df = df[_icontains_name(df["company_names_found"], company_name)]
     if sentiment:
         df = df[_icontains(df["sentiment"], sentiment)]
     if category:

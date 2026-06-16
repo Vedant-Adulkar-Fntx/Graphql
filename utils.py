@@ -121,9 +121,46 @@ def b(val: Any) -> Optional[bool]:
     return None
 
 
-def row_dict(row: pd.Series) -> dict:
-    """Pandas row → plain dict, NaN → None."""
-    out = {}
+class RowDict(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._norm_keys = {self._normalize(k): k for k in self.keys()}
+
+    def _normalize(self, key):
+        if not isinstance(key, str):
+            return key
+        return key.strip().lower().replace(" ", "").replace("_", "")
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        self._norm_keys[self._normalize(key)] = key
+
+    def get(self, key, default=None):
+        norm_key = self._normalize(key)
+        if norm_key in self._norm_keys:
+            return super().get(self._norm_keys[norm_key], default)
+        
+        # Some common fallback aliases just in case
+        aliases = {
+            "company": "companyname",
+            "companyname": "company",
+            "cin": "cinno",
+            "cinno": "cin",
+        }
+        if norm_key in aliases and aliases[norm_key] in self._norm_keys:
+            return super().get(self._norm_keys[aliases[norm_key]], default)
+            
+        return default
+
+    def __getitem__(self, key):
+        res = self.get(key, object())
+        if res is type(object()):
+            raise KeyError(key)
+        return res
+
+def row_dict(row: pd.Series) -> RowDict:
+    """Pandas row → RowDict, NaN → None."""
+    out = RowDict()
     for k, v in row.items():
         try:
             out[k] = None if pd.isna(v) else v
