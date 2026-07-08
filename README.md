@@ -11,9 +11,10 @@ The application exposes endpoints and visualizes diverse corporate domains inclu
 ### 1. Prerequisites
 Make sure you have **Python 3.8+** and **Node.js 18+** installed on your system.
 
-### 2. Configure the Excel Data File
-By default, the backend looks for an Excel file named **`Data Subscription Data points Sample data.xlsx`** inside the root project directory.
-* If your file is named differently or located elsewhere, configure it via the `EXCEL_PATH` environment variable.
+### 2. Configure Environment Variables
+Copy the provided `.env.example` file to create a `.env` file in the root directory:
+*   **`EXCEL_PATH`**: Path to your Excel database file (defaults to `Data Subscription Data points Sample data.xlsx`).
+*   **`VITE_GRAPHQL_ENDPOINT`**: The URL where your frontend will look for the backend API.
 
 ### 3. Install Backend Dependencies
 Activate your virtual environment and install the required Python libraries:
