@@ -1,7 +1,10 @@
 import pandas as pd
 import os
+from dotenv import load_dotenv
 
-excel_path = "Data Subscription Data points Sample data.xlsx"
+load_dotenv()
+
+excel_path = os.getenv("EXCEL_PATH", "Data Subscription Data points Sample data.xlsx")
 cin_to_check = "L22210MH1995PLC084781"  # Replace with the CIN you are testing if different
 
 if not os.path.exists(excel_path):

@@ -83,8 +83,11 @@ class SafeDataFrame(pd.DataFrame):
 
 def init(path: str = "") -> None:
     """Load every sheet. Call once at application startup."""
+    from dotenv import load_dotenv
+    load_dotenv()
+    
     global _dfs
-    path = path or os.getenv("EXCEL_PATH", "Data_Subscription_Data_points_Sample_data.xlsx")
+    path = path or os.getenv("EXCEL_PATH", "Data Subscription Data points Sample data.xlsx")
     logger.info("Loading Excel workbook: %s", path)
     xl = pd.ExcelFile(path)
     for raw_name in xl.sheet_names:

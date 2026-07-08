@@ -67,9 +67,19 @@ export function Financials() {
     if (label.includes('%') || label === 'EPS in Rs' || tableId === 'ratios') {
       return val;
     }
-    const num = parseFloat(val);
+    // Remove commas before parsing
+    const cleanStr = val.toString().replace(/,/g, '');
+    const num = parseFloat(cleanStr);
     if (isNaN(num)) return val;
-    return (num * 100).toFixed(2);
+    
+    // Convert Crores to Lakhs (* 100)
+    const converted = num * 100;
+    
+    // Format back with Indian comma style (or standard locale)
+    return converted.toLocaleString('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
   };
   const renderFinancialTable = (
   rows: FinancialRow[],
@@ -179,7 +189,8 @@ export function Financials() {
       if (!row) return 0;
       const val = row.values[originalIndex];
       if (val === '-') return 0;
-      const num = parseFloat(val) || 0;
+      const cleanStr = val.toString().replace(/,/g, '');
+      const num = parseFloat(cleanStr) || 0;
       if (
       unit === 'lakhs' &&
       !label.includes('%') &&

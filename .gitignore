@@ -17,8 +17,14 @@ yarn-debug.log*
 yarn-error.log*
 ui/.eslintcache
 
-# Excel / Data Files (Optional, remove if you want to track them)
-# *.xlsx
+# Support Scripts
+generate_report.py
+diagnose_excel.py
+compare_excel_detailed.py
+
+# Generated / Other Excel files (excluding the main source)
+Company_Data_Availability_Report.xlsx
+Updated_Company_Data_Availability_Report.xlsx
 # *.csv
 
 # System Files

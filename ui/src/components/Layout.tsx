@@ -17,6 +17,8 @@ import {
 'lucide-react';
 import { SearchBar } from './SearchBar';
 import { queryGraphQL } from '../utils/graphqlClient';
+import logo from '../assets/logo.png';
+
 export function Layout() {
   const { id } = useParams();
   const location = useLocation();
@@ -242,9 +244,8 @@ export function Layout() {
     <div className="flex h-screen bg-gray-50 font-body overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 bg-brand-blue text-white flex flex-col flex-shrink-0">
-        <div className="h-16 flex items-center px-6 border-b border-white/10">
-          <Database className="w-6 h-6 text-brand-yellow mr-2" />
-          <span className="font-heading text-xl tracking-wide">DataIntel</span>
+        <div className="h-24 flex items-center justify-center border-b border-white/10 px-2 py-1">
+          <img src={logo} alt="Logo" className="w-[90%] h-20 object-fill" />
         </div>
 
         <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">

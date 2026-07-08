@@ -1,4 +1,4 @@
-export const GRAPHQL_ENDPOINT = 'http://localhost:8000/graphql';
+export const GRAPHQL_ENDPOINT = import.meta.env.VITE_GRAPHQL_ENDPOINT || 'http://localhost:8000/graphql';
 
 export async function queryGraphQL(query: string, variables: any = {}) {
   try {
